@@ -173,17 +173,18 @@ function SkydivingController:BindControls(controlType)
 			context:BindAction(bind, input, true, table.unpack(self.keybinds[bind]))
 		end
 
-		
+		--[[
 		if not ControlSchema.IsCached("Skydive") then
 			local binds = InputController:GetKeybinds("Player", true)
 			ControlSchema.new("Skydive", {
 				{binds.SkydiveFlare, "Flare"};
 			})
 		end
-		
+		]]
+
 
 		run.Stepped:Wait()
-		ControlSchema.SetBinds("Skydive")
+		--ControlSchema.SetBinds("Skydive")
 	end
 end
 
@@ -208,7 +209,7 @@ function SkydivingController:UnbindControls()
 		end
 	end
 
-	ControlSchema.SetBinds("Player")
+	--ControlSchema.SetBinds("Player")
 end
 
 function SkydivingController:UpdateAnimation(action, animType)
@@ -520,12 +521,12 @@ function SkydivingController:DeployParachute()
 	self:EnableInterface(true)
 
 	run:UnbindFromRenderStep("Parachute")
-	
-	
+
+
 	context:UnbindAction("Deploy")
 
 	task.wait()
-	
+
 	local CutParachute = function()
 		if self.ParachuteStatus == "Deployed" then
 			self:CutParachute()
@@ -535,8 +536,8 @@ function SkydivingController:DeployParachute()
 			end
 		end
 	end
-	
-	
+
+
 	--TODO: Add Mobile and Console actions
 	warn("I just binded CUT action")
 	context:BindAction("Cut", CutParachute, true, Enum.KeyCode.X)
@@ -556,7 +557,7 @@ function SkydivingController:DeployParachute()
 		if groundCheck or frontCheck then
 			self:CutParachute()
 			run:UnbindFromRenderStep("Parachute")
-			
+
 			context:UnbindAction("Cut")
 
 			if self.backPrompt then
@@ -630,8 +631,8 @@ function SkydivingController:UpdateCharacter(character)
 	self.twistSpring = Spring.new(1.5, 0)
 
 	self.windFadeIn = tween:Create(wind, TweenInfo.new(1.5, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {Volume = .35})
-	
-	
+
+
 	context:UnbindAction("Cut")
 	context:UnbindAction("Deploy")
 
@@ -695,7 +696,7 @@ function SkydivingController:UpdateCharacter(character)
 					context:BindAction("Deploy", DeployFunction, true, Enum.KeyCode.E)
 				end
 			end
-			
+
 			if not self:Raycast(self.Character.Torso.Position, Vector3.new(0, -200, 0)) then
 				self:StartSkydive()
 			end
@@ -713,7 +714,7 @@ function SkydivingController:KnitStart()
 	MobileInterface = Player.PlayerGui:WaitForChild("MobileControls")
 	--PlayerInfo = Player.PlayerGui:WaitForChild("PlayerInfo")
 
-	ControlSchema = InterfaceController.GetInterface("ControlSchema")
+	--ControlSchema = InterfaceController.GetInterface("ControlSchema")
 
 	if Player.Character then
 		self:UpdateCharacter(Player.Character)

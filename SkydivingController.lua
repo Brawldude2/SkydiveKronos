@@ -21,7 +21,6 @@ print("This is the player.",Player)
 
 --Globals
 local mobileConnections = {}
-local nextState = "Idle"
 
 --Set this value correctly
 local Platform = "PC"
@@ -272,7 +271,17 @@ function SkydivingController:CalcFallDamage(stateChange)
 	end
 
 	if differential then
-		SkydivingService:FallDamage(differential)
+		if typeof(differential) ~= "number"  or differential ~= differential then return end
+
+		if self.Humanoid then
+			differential = math.clamp(differential, 0, 1)
+
+			local health = self.Humanoid.Health
+			if health > 0 then
+				local damage = differential * 100
+				self.Humanoid:TakeDamage(damage)
+			end
+		end
 	end
 
 	return differential
@@ -425,16 +434,6 @@ function SkydivingController:StartSkydive()
 				break
 			end
 
-			if nextState == "Deploy" then
-				--Can do something here when player is too close to ground
-				--if not self:IsAbove(1000) then
-				--end
-
-				if not self:IsAbove() then
-					context:UnbindAction("Deploy")
-				end
-			end
-
 			--self:UpdateInterface()
 
 			task.wait()
@@ -460,7 +459,7 @@ function SkydivingController:StopSkydive(calledFromDeploy)
 	self.Character.Torso.Velocity /= 3
 
 	self.RootJoint.C0 = CFrame.Angles(math.pi/2, math.pi, 0)
-	self:EnableInterface(false)
+	--self:EnableInterface(false)
 	wind:Stop()
 end
 
@@ -518,7 +517,7 @@ function SkydivingController:DeployParachute()
 	self:BindControls("Parachute")
 
 	parachuteSound:Play()
-	self:EnableInterface(true)
+	--self:EnableInterface(true)
 
 	run:UnbindFromRenderStep("Parachute")
 
@@ -580,7 +579,7 @@ function SkydivingController:CutParachute()
 	self.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
 
 	parachuteSound:Stop()
-	self:EnableInterface(false)
+	--self:EnableInterface(false)
 
 	run:UnbindFromRenderStep("Parachute")
 	SkydivingService:Grounded(self.RootJoint.C1)
@@ -681,7 +680,6 @@ function SkydivingController:UpdateCharacter(character)
 
 			startFreefall:Disconnect()
 			if self.ParachuteStatus == "Equipped" then
-				context:UnbindAction("Deploy")
 				run.Stepped:Wait()
 
 				-- Ensure static type parachutes can't deploy on their own

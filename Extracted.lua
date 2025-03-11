@@ -5,13 +5,19 @@
 -- Removed dependencies by 23sinek345
 
 local Knit = require(game:GetService("ReplicatedStorage").Packages.Knit)
-local srv = require(Knit.Shared.GameServices)
+
+--Services
+local sound = game:GetService("SoundService")
+local tween = game:GetService("TweenService")
+local run = game:GetService("RunService")
+local input = game:GetService("UserInputService")
+local context = game:GetService("ContextActionService")
 
 --Globals
 local mobileConnections = {}
 
 --Set this value correctly
-local Platform = "Mobile"
+local Platform = "PC"
 
 local MIN_DIS = 500 -- Amount of studs from ground before player can't initiate a freefall or deploy their parachute
 local FALL_TIME_BEFORE_DEPLOY = 1 -- sec
@@ -26,9 +32,9 @@ local ALTITUDE_MAX = 6500 -- Max height on the altitude bar that the indicator i
 
 local camera = workspace.CurrentCamera
 local animations = script:WaitForChild("Animations")
-local parachuteSound = srv.sound:WaitForChild("Parachute")
+local parachuteSound = sound:WaitForChild("Parachute")
 
-local wind = srv.sound:WaitForChild("Wind_SFX")
+local wind = sound:WaitForChild("Wind_SFX")
 
 local SkydivingController = Knit.CreateController {
 	Name = "SkydivingController",
@@ -154,7 +160,7 @@ function SkydivingController:BindControls(controlType)
 		end))
 	else
 		for bind,_ in binds[controlType] do
-			srv.context:BindAction(bind, input, false, table.unpack(self.keybinds[bind]))
+			context:BindAction(bind, input, false, table.unpack(self.keybinds[bind]))
 		end
 
 		if not ControlSchema.IsCached("Skydive") then
@@ -164,7 +170,7 @@ function SkydivingController:BindControls(controlType)
 			})
 		end
 
-		srv.run.Stepped:Wait()
+		run.Stepped:Wait()
 		ControlSchema.SetBinds("Skydive")
 	end
 end
@@ -185,7 +191,7 @@ function SkydivingController:UnbindControls()
 	else
 		for _,controlType in binds do
 			for bind,_ in controlType do
-				srv.context:UnbindAction(bind)
+				context:UnbindAction(bind)
 			end
 		end
 
@@ -504,7 +510,7 @@ function SkydivingController:DeployParachute()
 	parachuteSound:Play()
 	self:EnableInterface(true)
 
-	srv.run:UnbindFromRenderStep("Parachute")
+	run:UnbindFromRenderStep("Parachute")
 
 	if self.prompt then
 		self.prompt:Disconnect(true)
@@ -529,9 +535,9 @@ function SkydivingController:DeployParachute()
 	})
 
 	local rotationTick = tick()
-	srv.run:BindToRenderStep("Parachute", Enum.RenderPriority.Camera.Value, function(dt)
+	run:BindToRenderStep("Parachute", Enum.RenderPriority.Camera.Value, function(dt)
 		if self.ParachuteStatus ~= "Deployed" then
-			srv.run:UnbindFromRenderStep("Parachute")
+			run:UnbindFromRenderStep("Parachute")
 		end
 
 		self:CalcParachute(dt)
@@ -541,7 +547,7 @@ function SkydivingController:DeployParachute()
 		local groundCheck = self:Raycast(self.Character.Torso.Position, Vector3.new(0, -7, 0))
 		if groundCheck or frontCheck then
 			self:CutParachute()
-			srv.run:UnbindFromRenderStep("Parachute")
+			run:UnbindFromRenderStep("Parachute")
 			if self.prompt then
 				self.prompt:Disconnect()
 			end
@@ -568,7 +574,7 @@ function SkydivingController:CutParachute()
 	parachuteSound:Stop()
 	self:EnableInterface(false)
 
-	srv.run:UnbindFromRenderStep("Parachute")
+	run:UnbindFromRenderStep("Parachute")
 	SkydivingService:Grounded(self.RootJoint.C1)
 	self:UnbindControls()
 	self:StopAnimations()
@@ -615,7 +621,7 @@ function SkydivingController:UpdateCharacter(character)
 	self.tiltSpring = Spring.new(1.5, 0)
 	self.twistSpring = Spring.new(1.5, 0)
 
-	self.windFadeIn = srv.tween:Create(wind, TweenInfo.new(1.5, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {Volume = .35})
+	self.windFadeIn = tween:Create(wind, TweenInfo.new(1.5, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {Volume = .35})
 
 	if self.prompt and self.prompt.Disconnect then
 		self.prompt:Disconnect()
@@ -650,7 +656,7 @@ function SkydivingController:UpdateCharacter(character)
 				end
 			else
 				if tick() - self.lastDeployed > .5 then
-					startFreefall = srv.run.Stepped:Connect(function()
+					startFreefall = run.Stepped:Connect(function()
 						if not character:FindFirstChild("Torso") then
 							startFreefall:Disconnect()
 							return
@@ -661,7 +667,7 @@ function SkydivingController:UpdateCharacter(character)
 							if self.ParachuteStatus == "Equipped" then
 								if self.prompt then
 									self.prompt:Disconnect(true)
-									srv.run.Stepped:Wait()
+									run.Stepped:Wait()
 
 									-- Ensure static type parachutes can't deploy on their own
 									if self.ParachuteType == "Regular" then
@@ -724,7 +730,7 @@ function SkydivingController:KnitStart()
 
 		local origSize = _canopy.Parachute.Size
 		_canopy.Parachute.Size = Vector3.new(1, 1, 1)
-		srv.tween:Create(_canopy.Parachute, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		tween:Create(_canopy.Parachute, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 			Size = origSize,
 			Transparency = 0
 		}):Play()
@@ -738,7 +744,7 @@ function SkydivingController:KnitStart()
 	SkydivingService.UpdateRotation:Connect(function(root, angle)
 		for t = 0, 101, 10 do
 			root.RootJoint.C1 = root.RootJoint.C1:Lerp(angle, t/100)
-			srv.run.RenderStepped:Wait()
+			run.RenderStepped:Wait()
 		end
 	end)
 end

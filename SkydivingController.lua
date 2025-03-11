@@ -152,7 +152,7 @@ function SkydivingController:BindControls(controlType)
 
 		--TODO: Seperate PlayerModule from knit
 		gui.TouchControlsEnabled = false
-		MobileControls:Disable()
+		--MobileControls:Disable()
 		MobileInterface.ArrowKeys.Visible = true
 		--MobileInterface.ToggleFlare.Visible = true
 
@@ -193,7 +193,7 @@ function SkydivingController:UnbindControls()
 	--TODO: Seperate PlayerModule from knit
 	--TODO: Custom gui for mobile
 	gui.TouchControlsEnabled = true
-	MobileControls:Enable()
+	--MobileControls:Enable()
 	MobileInterface.ArrowKeys.Visible = false
 	--MobileInterface.ToggleFlare.Visible = false
 
@@ -642,7 +642,8 @@ function SkydivingController:UpdateCharacter(character)
 
 	local lastStateChange = nil
 	local startFreefall = nil
-	local freefall; freefall = self.Humanoid.FreeFalling:Connect(function(isFalling)
+	local freefall
+	freefall = self.Humanoid.FreeFalling:Connect(function(isFalling)
 		print("Free falling bind.")
 		local thisStateChange = nil
 		if isFalling or (not isFalling and not self:IsAbove()) then
@@ -708,7 +709,7 @@ function SkydivingController:KnitStart()
 	SkydivingService = Knit.GetService("SkydivingService")
 	InputController = Knit.GetController("InputController")
 	InterfaceController = Knit.GetController("InterfaceController")
-	MobileControls = InterfaceController.GetInterface("MobileControls")
+	--MobileControls = InterfaceController.GetInterface("MobileControls")
 	--Prompt = require(Knit.Modules.InteractPrompt)
 
 	MobileInterface = Player.PlayerGui:WaitForChild("MobileControls")

@@ -530,8 +530,7 @@ function SkydivingController:DeployParachute()
 			end
 		end,
 		State = "Cut",
-		ActionText = "Cut",
-		OverrideKey = Enum.KeyCode[Settings:GetBinds().Player.SecondaryInteract]
+		ActionText = "Cut"
 	})
 
 	local rotationTick = tick()
@@ -682,8 +681,7 @@ function SkydivingController:UpdateCharacter(character)
 											ActionText = "Deploy",
 											CreateDisconnectSignal = true,
 											DisableInterface = true,
-											ProximityClose = false,
-											OverrideKey = Enum.KeyCode[Settings:GetBinds().Player.SecondaryInteract]
+											ProximityClose = false
 										})
 									end
 								end
@@ -705,7 +703,6 @@ end
 function SkydivingController:KnitStart()
 	SkydivingService = Knit.GetService("SkydivingService")
 	InputController = Knit.GetController("InputController")
-	Settings = Knit.GetController("SettingsController")
 	InterfaceController = Knit.GetController("InterfaceController")
 	MobileControls = InterfaceController.GetInterface("MobileControls")
 	Prompt = require(Knit.Modules.InteractPrompt)

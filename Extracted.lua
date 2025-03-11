@@ -6,14 +6,12 @@
 
 local Knit = require(game:GetService("ReplicatedStorage").Packages.Knit)
 local srv = require(Knit.Shared.GameServices)
-local Spring = require(Knit.Shared.Spring)
-
 
 --Globals
 local mobileConnections = {}
 
 --Set this value correctly
-local Platform = "PC"
+local Platform = "Mobile"
 
 local MIN_DIS = 500 -- Amount of studs from ground before player can't initiate a freefall or deploy their parachute
 local FALL_TIME_BEFORE_DEPLOY = 1 -- sec
@@ -52,6 +50,38 @@ local binds = {
 		SkydiveFlare = true,
 	}
 }
+
+-- Standalone spring Module --
+local Spring = {}
+Spring.__index = Spring
+function Spring.new(freq, pos)
+	local self = setmetatable({}, Spring)
+	self.f = freq
+	self.p = pos
+	self.v = pos*0
+	return self
+end
+function Spring:Update(dt, goal)
+	local f = self.f*2*math.pi
+	local p0 = self.p
+	local v0 = self.v
+
+	local offset = goal - p0
+	local decay = math.exp(-f*dt)
+
+	local p1 = goal + (v0*dt - offset*(f*dt + 1))*decay
+	local v1 = (f*dt*(offset*f - v0) + v0)*decay
+
+	self.p = p1
+	self.v = v1
+
+	return p1
+end
+function Spring:Reset(pos)
+	self.p = pos
+	self.v = pos*0
+end
+------------------------------
 
 function SkydivingController:BindControls(controlType)
 	self:UnbindControls()

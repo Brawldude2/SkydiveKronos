@@ -17,6 +17,7 @@ local gui = game:GetService("GuiService")
 
 --Constants
 local Player = Players.LocalPlayer
+local MobileInterface = Player.PlayerGui:WaitForChild("MobileControls")
 print("This is the player.",Player)
 
 --Globals
@@ -146,15 +147,15 @@ function SkydivingController:BindControls(controlType)
 
 	if Platform == "Mobile" then
 		task.delay(.01, function()
-			InterfaceController.SetState("null")
+			--InterfaceController.SetState("null")
 		end)
 
 		--TODO: Seperate PlayerModule from knit
 		gui.TouchControlsEnabled = false
-		--MobileControls:Disable()
-		MobileInterface.ArrowKeys.Visible = true
-		--MobileInterface.ToggleFlare.Visible = true
-
+		--TODO: MobileGui
+		--MobileInterface.ArrowKeys.Visible = true
+		
+		--TODO: MobileGui
 		for _,controlFrame in MobileInterface.ArrowKeys:GetChildren() do
 			table.insert(mobileConnections,controlFrame.Button.InputBegan:Connect(function(_input)
 				input(controlType .. controlFrame.Name, _input.UserInputState)
@@ -163,7 +164,7 @@ function SkydivingController:BindControls(controlType)
 				input(controlType .. controlFrame.Name, _input.UserInputState)
 			end))
 		end
-
+		--TODO: MobileGui
 		table.insert(mobileConnections,MobileInterface.ToggleFlare.Button.Activated:Connect(function()
 			input("SkydiveFlare", Enum.UserInputState.Begin)
 		end))
@@ -188,13 +189,12 @@ function SkydivingController:BindControls(controlType)
 end
 
 function SkydivingController:UnbindControls()
-	InterfaceController.SetState("Player")
+	--InterfaceController.SetState("Player")
 	--TODO: Seperate PlayerModule from knit
-	--TODO: Custom gui for mobile
 	gui.TouchControlsEnabled = true
 	--MobileControls:Enable()
-	MobileInterface.ArrowKeys.Visible = false
-	--MobileInterface.ToggleFlare.Visible = false
+	--TODO: MobileGui
+	--MobileInterface.ArrowKeys.Visible = false
 
 	if mobileConnections then
 		for _,connection in mobileConnections do
@@ -706,11 +706,11 @@ end
 function SkydivingController:KnitStart()
 	SkydivingService = Knit.GetService("SkydivingService")
 	InputController = Knit.GetController("InputController")
-	InterfaceController = Knit.GetController("InterfaceController")
+	--InterfaceController = Knit.GetController("InterfaceController")
 	--MobileControls = InterfaceController.GetInterface("MobileControls")
 	--Prompt = require(Knit.Modules.InteractPrompt)
 
-	MobileInterface = Player.PlayerGui:WaitForChild("MobileControls")
+	--MobileInterface = Player.PlayerGui:WaitForChild("MobileControls")
 	--PlayerInfo = Player.PlayerGui:WaitForChild("PlayerInfo")
 
 	--ControlSchema = InterfaceController.GetInterface("ControlSchema")

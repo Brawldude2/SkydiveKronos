@@ -4,9 +4,8 @@
 
 -- Removed dependencies by 23sinek345
 
-local Knit = require(game:GetService("ReplicatedStorage").Packages.Knit)
-
 --Services
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local sound = game:GetService("SoundService")
 local tween = game:GetService("TweenService")
@@ -15,10 +14,9 @@ local input = game:GetService("UserInputService")
 local context = game:GetService("ContextActionService")
 local gui = game:GetService("GuiService")
 
---Constants
+--References
 local Player = Players.LocalPlayer
-local MobileInterface = Player.PlayerGui:WaitForChild("MobileControls")
-print("This is the player.",Player)
+local RemoteEvents = ReplicatedStorage.RemoteEvents.SkydivingSystem
 
 --Globals
 local mobileConnections = {}
@@ -42,10 +40,6 @@ local animations = script:WaitForChild("Animations")
 local parachuteSound = sound:WaitForChild("Parachute")
 
 local wind = sound:WaitForChild("Wind_SFX")
-
-local SkydivingController = Knit.CreateController {
-	Name = "SkydivingController",
-}
 
 local binds = {
 	Skydive = {
@@ -96,7 +90,49 @@ function Spring:Reset(pos)
 end
 ------------------------------
 
-function SkydivingController:BindControls(controlType)
+local self = {}
+
+function self.initialize()
+	self.MobileInterface = Player.PlayerGui:WaitForChild("MobileControls")
+
+	if Player.Character then
+		self:UpdateCharacter(Player.Character)
+	end
+
+	Player.CharacterAdded:Connect(function(character)
+		self:UpdateCharacter(character)
+	end)
+
+	RemoteEvents.CanopyUpdate.OnClientEvent:Connect(function(_canopy)
+		--Parachute opening animation
+		if not _canopy or (_canopy and not _canopy:FindFirstChild("Parachute")) then
+			return
+		end
+
+		local origSize = _canopy.Parachute.Size
+		_canopy.Parachute.Size = Vector3.new(1, 1, 1)
+		tween:Create(_canopy.Parachute, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = origSize,
+			Transparency = 0
+		}):Play()
+	end)
+	
+	RemoteEvents.UpdateRotation.OnClientEvent:Connect(function(root, angle)
+		for t = 0, 101, 10 do
+			root.RootJoint.C1 = root.RootJoint.C1:Lerp(angle, t/100)
+			run.RenderStepped:Wait()
+		end
+	end)
+end
+
+local function GetParachuteType(Character)
+	if Character and Character:FindFirstChild("Parachute") then
+		return Character.Parachute:GetAttribute("ParachuteType")
+	end
+	return nil
+end
+
+function self:BindControls(controlType)
 	self:UnbindControls()
 
 	local flareEnabled = false
@@ -117,15 +153,6 @@ function SkydivingController:BindControls(controlType)
 				self.twistSpeed = binds.Parachute[action]
 				self:UpdateAnimation(action, "Press")
 			end
-
-			--[[
-			if action == "SkydiveFlare" then
-				local groundCheck = self:Raycast(self.Character.Torso.Position, Vector3.new(0, -7, 0))
-				if not groundCheck then
-					SkydivingService:ToggleFlare()
-				end
-			end
-			]]
 		else
 			-- Skydiving Binds Release
 			if action == "SkydiveForward" or action == "SkydiveBackward" then
@@ -146,17 +173,11 @@ function SkydivingController:BindControls(controlType)
 	end
 
 	if Platform == "Mobile" then
-		task.delay(.01, function()
-			--InterfaceController.SetState("null")
-		end)
-
-		--TODO: Seperate PlayerModule from knit
 		gui.TouchControlsEnabled = false
+		self.MobileInterface.ArrowKeys.Visible = true
+
 		--TODO: MobileGui
-		--MobileInterface.ArrowKeys.Visible = true
-		
-		--TODO: MobileGui
-		for _,controlFrame in MobileInterface.ArrowKeys:GetChildren() do
+		for _,controlFrame in self.MobileInterface.ArrowKeys:GetChildren() do
 			table.insert(mobileConnections,controlFrame.Button.InputBegan:Connect(function(_input)
 				input(controlType .. controlFrame.Name, _input.UserInputState)
 			end))
@@ -164,54 +185,33 @@ function SkydivingController:BindControls(controlType)
 				input(controlType .. controlFrame.Name, _input.UserInputState)
 			end))
 		end
-		--TODO: MobileGui
-		table.insert(mobileConnections,MobileInterface.ToggleFlare.Button.Activated:Connect(function()
-			input("SkydiveFlare", Enum.UserInputState.Begin)
-		end))
 	else
 		for bind,_ in binds[controlType] do
 			context:BindAction(bind, input, true, table.unpack(self.keybinds[bind]))
 		end
 
-		--[[
-		if not ControlSchema.IsCached("Skydive") then
-			local binds = InputController:GetKeybinds("Player", true)
-			ControlSchema.new("Skydive", {
-				{binds.SkydiveFlare, "Flare"};
-			})
-		end
-		]]
-
-
 		run.Stepped:Wait()
-		--ControlSchema.SetBinds("Skydive")
 	end
 end
 
-function SkydivingController:UnbindControls()
-	--InterfaceController.SetState("Player")
-	--TODO: Seperate PlayerModule from knit
+function self:UnbindControls()
 	gui.TouchControlsEnabled = true
-	--MobileControls:Enable()
-	--TODO: MobileGui
-	--MobileInterface.ArrowKeys.Visible = false
+	self.MobileInterface.ArrowKeys.Visible = false
 
 	if mobileConnections then
 		for _,connection in mobileConnections do
 			connection:Disconnect()
 		end
 	end
-	--else
+	
 	for _,controlType in binds do
 		for bind,_ in controlType do
 			context:UnbindAction(bind)
 		end
 	end
-
-	--ControlSchema.SetBinds("Player")
 end
 
-function SkydivingController:UpdateAnimation(action, animType)
+function self:UpdateAnimation(action, animType)
 	if self.animations[action] then
 		if animType == "Press" then
 			self.animations[action]:Play(.6)
@@ -221,7 +221,7 @@ function SkydivingController:UpdateAnimation(action, animType)
 	end
 end
 
-function SkydivingController:LoadAnimations()
+function self:LoadAnimations()
 	self.animations = {}
 	local animator = self.Humanoid:WaitForChild("Animator")
 
@@ -232,7 +232,7 @@ function SkydivingController:LoadAnimations()
 	self.animations.ParachuteIdle:Play(.5, .8)
 end
 
-function SkydivingController:StopAnimations()
+function self:StopAnimations()
 	if self.animations then
 		for _,animation in self.animations do
 			animation:Stop()
@@ -241,7 +241,7 @@ function SkydivingController:StopAnimations()
 end
 
 -- Checks if the character is above the minimum fall start height & the minimum deploy height
-function SkydivingController:IsAbove(height)
+function self:IsAbove(height)
 	if not self.Character:FindFirstChild("HumanoidRootPart") then
 		return false
 	end
@@ -249,7 +249,7 @@ function SkydivingController:IsAbove(height)
 	return self.Character.HumanoidRootPart.Position.Y > (height or MIN_DIS)
 end
 
-function SkydivingController:CalcFallDamage(stateChange)
+function self:CalcFallDamage(stateChange)
 	if stateChange and self.ActiveDive or self.ParachuteStatus == "Deployed" then
 		return
 	end
@@ -287,21 +287,11 @@ function SkydivingController:CalcFallDamage(stateChange)
 	return differential
 end
 
-function SkydivingController:UpdateInterface()
-	--local torsoAlt = math.floor(self.Character.Torso.Position.Y)
-	--local torsoSpeed = math.abs(math.floor(self.Character.Torso.Velocity.Y))
-	--local barPos = math.clamp(1 - self.Character.Torso.Position.Y / ALTITUDE_MAX, 0, 1)
-
-	--PlayerInfo.Altitude.Indicator.Position = UDim2.fromScale(0, barPos)
-	--PlayerInfo.Altitude.Indicator.speed.Text = ("<b>%d</b> mph"):format(torsoSpeed)
-	--PlayerInfo.Altitude.Indicator.alt.Text = ("<b>%d</b> ft"):format(torsoAlt)
-end
-
-function SkydivingController:EnableInterface(bool)
+function self:EnableInterface(bool)
 	--PlayerInfo.Altitude.Visible = bool
 end
 
-function SkydivingController:ResetJoints()
+function self:ResetJoints()
 	self.joints.RArmJoint.C0 = CFrame.new(1, 0.5, 0) * CFrame.Angles(0, math.pi/2, 0)
 	self.joints.RArmJoint.C1 = CFrame.new(-.5, 0.5, 0) * CFrame.Angles(0, math.pi/2, 0)
 	self.joints.LArmJoint.C0 = CFrame.new(-1, 0.5, 0) * CFrame.Angles(0, -math.pi/2, 0)
@@ -320,7 +310,7 @@ end
 local horSpeed = 280
 local slowHorSpeed = 150
 
-function SkydivingController:CalcSkydive(dt, character)
+function self:CalcSkydive(dt, character)
 	local character = character or self.Character
 	local rootPart = character:FindFirstChild("HumanoidRootPart")
 	if not rootPart then
@@ -374,7 +364,7 @@ function SkydivingController:CalcSkydive(dt, character)
 	wind.PlaybackSpeed = ((torsoSpeed / 600) * 12) + 5
 end
 
-function SkydivingController:Raycast(origin, direction)
+function self:Raycast(origin, direction)
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterDescendantsInstances = {self.Character}
 	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
@@ -389,7 +379,7 @@ function SkydivingController:Raycast(origin, direction)
 	return result and result.Instance or nil
 end
 
-function SkydivingController:StartSkydive()
+function self:StartSkydive()
 	if self.ActiveDive or self.ParachuteStatus == "Deployed" then
 		return
 	end
@@ -433,7 +423,8 @@ function SkydivingController:StartSkydive()
 				self:StopSkydive()
 				break
 			end
-
+			
+			--I left these for future gui update systems
 			--self:UpdateInterface()
 
 			task.wait()
@@ -441,7 +432,7 @@ function SkydivingController:StartSkydive()
 	end)
 end
 
-function SkydivingController:StopSkydive(calledFromDeploy)
+function self:StopSkydive(calledFromDeploy)
 	self:UnbindControls()
 
 	if not calledFromDeploy then
@@ -472,7 +463,7 @@ local maxTwist = 50
 local twistSpeedZAxis = 1.25
 local maxRotationSpeed = 1.5
 
-function SkydivingController:CalcParachute(dt)
+function self:CalcParachute(dt)
 	local x = self.Character.Torso.Orientation.X
 	local y = self.Character.Torso.Orientation.Y
 	local z = self.Character.Torso.Orientation.Z
@@ -503,9 +494,9 @@ function SkydivingController:CalcParachute(dt)
 	end
 end
 
-function SkydivingController:DeployParachute()
+function self:DeployParachute()
 	self.lastDeployed = tick()
-	SkydivingService:OpenCanopy()
+	RemoteEvents.OpenCanopy:FireServer()
 	self.ParachuteStatus = "Deployed"
 
 	self:LoadAnimations()
@@ -537,14 +528,13 @@ function SkydivingController:DeployParachute()
 	end
 
 
-	--TODO: Add Mobile and Console actions
+	--TODO: Console keybinds
 	warn("I just binded CUT action")
 	context:BindAction("Cut", CutParachute, true, Enum.KeyCode.X)
 
 	local rotationTick = tick()
 	run:BindToRenderStep("Parachute", Enum.RenderPriority.Camera.Value, function(dt)
 		if self.ParachuteStatus ~= "Deployed" then
-			print("[DEBUG]: For some reason this keeps running or it just runs once idk?")
 			run:UnbindFromRenderStep("Parachute")
 		end
 
@@ -558,20 +548,16 @@ function SkydivingController:DeployParachute()
 			run:UnbindFromRenderStep("Parachute")
 
 			context:UnbindAction("Cut")
-
-			if self.backPrompt then
-				self.backPrompt:Disconnect()
-			end
 		end
 
 		if tick() - rotationTick > .2 then
-			SkydivingService:UpdateParachuteAngle(self.RootJoint.C1)
+			RemoteEvents.UpdateParachuteAngle:FireServer(self.RootJoint.C1)
 			rotationTick = tick()
 		end
 	end) 
 end
 
-function SkydivingController:CutParachute()
+function self:CutParachute()
 	self.ParachuteStatus = "Cut"
 
 	self.Humanoid.AutoRotate = true
@@ -582,7 +568,7 @@ function SkydivingController:CutParachute()
 	--self:EnableInterface(false)
 
 	run:UnbindFromRenderStep("Parachute")
-	SkydivingService:Grounded(self.RootJoint.C1)
+	RemoteEvents.Grounded:FireServer(self.RootJoint.C1)
 	self:UnbindControls()
 	self:StopAnimations()
 
@@ -590,13 +576,13 @@ function SkydivingController:CutParachute()
 	self.RootJoint.C1 = CFrame.new(0, 0, 0) * CFrame.Angles(-math.pi/2, 0, math.pi)
 end
 
-function SkydivingController:UpdateCharacter(character)
+function self:UpdateCharacter(character)
 	print("Update character called.")
 	self.Character = character
 	self.RootPart = character:WaitForChild("HumanoidRootPart")
 	self.RootJoint = self.RootPart:WaitForChild("RootJoint")
 	self.Humanoid = character:WaitForChild("Humanoid")
-	self.keybinds = InputController:GetKeybinds("Player")
+	self.keybinds = require(script.Keybinds)
 	self.lastStateChange = tick()
 	self.lastDeployed = tick()
 
@@ -634,10 +620,6 @@ function SkydivingController:UpdateCharacter(character)
 
 	context:UnbindAction("Cut")
 	context:UnbindAction("Deploy")
-
-	if self.backPrompt and self.backPrompt.Disconnect then
-		self.backPrompt:Disconnect()
-	end
 
 	local lastStateChange = nil
 	local startFreefall = nil
@@ -703,51 +685,4 @@ function SkydivingController:UpdateCharacter(character)
 	end)
 end
 
-function SkydivingController:KnitStart()
-	SkydivingService = Knit.GetService("SkydivingService")
-	InputController = Knit.GetController("InputController")
-	--InterfaceController = Knit.GetController("InterfaceController")
-	--MobileControls = InterfaceController.GetInterface("MobileControls")
-	--Prompt = require(Knit.Modules.InteractPrompt)
-
-	--MobileInterface = Player.PlayerGui:WaitForChild("MobileControls")
-	--PlayerInfo = Player.PlayerGui:WaitForChild("PlayerInfo")
-
-	--ControlSchema = InterfaceController.GetInterface("ControlSchema")
-
-	if Player.Character then
-		self:UpdateCharacter(Player.Character)
-	end
-
-	Player.CharacterAdded:Connect(function(character)
-		self:UpdateCharacter(character)
-	end)
-
-	SkydivingService.CanopyUpdate:Connect(function(_canopy)
-		--Parachute opening animation
-		if not _canopy or (_canopy and not _canopy:FindFirstChild("Parachute")) then
-			return
-		end
-
-		local origSize = _canopy.Parachute.Size
-		_canopy.Parachute.Size = Vector3.new(1, 1, 1)
-		tween:Create(_canopy.Parachute, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			Size = origSize,
-			Transparency = 0
-		}):Play()
-	end)
-
-	local zoneSize = MIN_DIS / ALTITUDE_MAX
-	--PlayerInfo.Altitude.AltitudeBar.BlackZone.Size = UDim2.fromScale(1, zoneSize)
-	--PlayerInfo.Altitude.AltitudeBar.WhiteZone.Size = UDim2.fromScale(1, zoneSize)
-	--PlayerInfo.Altitude.AltitudeBar.WhiteZone.Position = UDim2.fromScale(1, 1 - zoneSize)
-
-	SkydivingService.UpdateRotation:Connect(function(root, angle)
-		for t = 0, 101, 10 do
-			root.RootJoint.C1 = root.RootJoint.C1:Lerp(angle, t/100)
-			run.RenderStepped:Wait()
-		end
-	end)
-end
-
-return SkydivingController
+return self
